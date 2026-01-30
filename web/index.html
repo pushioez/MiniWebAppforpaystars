@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Coffee Mini App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<main id="app">
+
+  <!-- MAIN -->
+  <section id="page-main" class="page active">
+    <div class="products" id="product-list"></div>
+  </section>
+
+  <!-- PAY -->
+  <section id="page-pay" class="page">
+    <h2>Подтверждение оплаты</h2>
+    <div id="pay-list"></div>
+    <div class="total">
+      Итого: <span id="total-stars">0</span> ⭐
+    </div>
+    <button type="button" class="primary" id="pay-button">Оплатить</button>
+  </section>
+
+  <!-- QR -->
+  <section id="page-qr" class="page">
+    <h2>QR-код для получения заказа</h2>
+    <img id="qr-image" src="" alt="QR код заказа">
+    <button type="button" class="glass" id="btn-main-qr">На главную</button>
+  </section>
+
+</main>
+
+<div class="tabbar">
+  <button type="button" id="btn-main">🏠<span>Главная</span></button>
+  <button type="button" id="btn-cart">🛒<span>Корзина</span></button>
+</div>
+
+<script src="https://telegram.org/js/telegram-web-app.js" defer></script>
+<script src="app.js" defer></script>
+</body>
+</html>
