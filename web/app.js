@@ -1,8 +1,12 @@
-const tg = Telegram.WebApp;
-tg.expand();
+/* ================= TELEGRAM ================= */
+const tg = window.Telegram?.WebApp;
+
+if (tg) {
+  tg.expand();
+}
 
 /* ================= НАСТРОЙКИ ================= */
-const RATE = 1.84; // курс в звёздах
+const RATE = 1.74;
 
 /* ================= ПРОДУКТЫ ================= */
 const PRODUCTS = [
@@ -72,83 +76,102 @@ const PRODUCTS = [
 ];
 
 /* ================= КОРЗИНА ================= */
-let cart = JSON.parse(localStorage.getItem("cart") || "[]");
+let cart = JSON.parse(localStorage.getItem("cart") || "{}");
 
+/* ================= DOM ================= */
 const productList = document.getElementById("product-list");
-if (!productList) {
-  console.error("❌ Элемент #product-list не найден");
-}
 
 /* ================= РЕНДЕР ================= */
-PRODUCTS.forEach(p => {
-  const el = document.createElement("div");
-  el.className = "card";
-  el.innerHTML = `
-    <img src="images/${p.img}" alt="${p.name}">
-    <h3>${p.name}</h3>
-    <p class="desc">${p.desc}</p>
-    <p class="price">${p.stars} ⭐</p>
-    <div class="actions">
-      <button class="glass" onclick="addToCart('${p.id}')">В корзину</button>
-      <button class="primary" onclick="buyNow('${p.id}')">Купить</button>
-    </div>
-  `;
-  productList?.appendChild(el);
-});
+function renderProducts() {
+  productList.innerHTML = "";
+
+  PRODUCTS.forEach(p => {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    card.innerHTML = `
+      <img src="images/${p.img}" alt="${p.name}">
+      <h3>${p.name}</h3>
+      <p>${p.desc}</p>
+      <p><b>${p.stars} ⭐</b></p>
+      <div class="actions">
+        <button class="glass">В корзину</button>
+        <button class="primary">Купить</button>
+      </div>
+    `;
+
+    card.querySelector(".glass").addEventListener("click", () => addToCart(p.id));
+    card.querySelector(".primary").addEventListener("click", () => buyNow(p.id));
+
+    productList.appendChild(card);
+  });
+}
+
+renderProducts();
 
 /* ================= ЛОГИКА ================= */
 function addToCart(id) {
-  cart.push(id);
+  cart[id] = (cart[id] || 0) + 1;
   localStorage.setItem("cart", JSON.stringify(cart));
+
+  tg?.HapticFeedback?.impactOccurred("light");
 }
 
 function buyNow(id) {
+  const item = PRODUCTS.find(p => p.id === id);
+  if (!item || !tg) return;
+
   tg.sendData(JSON.stringify({
     type: "buy",
-    items: [id]
+    items: [{ id, qty: 1 }]
   }));
+
+  tg.close();
 }
 
 function goCart() {
   switchPage("page-pay");
 
   const payList = document.getElementById("pay-list");
-  payList.innerHTML = "";
+  const totalEl = document.getElementById("total-stars");
+  const payBtn = document.getElementById("pay-button");
 
+  payList.innerHTML = "";
   let total = 0;
 
-  cart
-    .map(id => PRODUCTS.find(p => p.id === id))
-    .filter(Boolean)
-    .forEach(item => {
-      total += item.stars;
-      payList.innerHTML += `<p>${item.name} — ${item.stars} ⭐</p>`;
-    });
+  Object.entries(cart).forEach(([id, qty]) => {
+    const item = PRODUCTS.find(p => p.id === id);
+    if (!item) return;
 
-  document.getElementById("total-stars").innerText = total;
-  const btn = document.getElementById("pay-button");
-  btn.innerText = `Оплатить ${total} ⭐`;
+    const sum = item.stars * qty;
+    total += sum;
 
-  btn.onclick = () => {
+    payList.innerHTML += `<p>${item.name} × ${qty} — ${sum} ⭐</p>`;
+  });
+
+  totalEl.innerText = total;
+  payBtn.disabled = total === 0;
+  payBtn.innerText = total > 0 ? `Оплатить ${total} ⭐` : "Корзина пуста";
+
+  payBtn.onclick = () => {
+    if (!tg || total === 0) return;
+
     tg.sendData(JSON.stringify({
       type: "cart",
-      items: cart,
-      total
+      items: Object.entries(cart).map(([id, qty]) => ({ id, qty }))
     }));
+
+    tg.close();
   };
 }
 
 function goMain() {
-  cart = [];
-  localStorage.removeItem("cart"); // ✅ правильно
+  cart = {};
+  localStorage.removeItem("cart");
   switchPage("page-main");
 }
 
 function switchPage(id) {
-  document
-    .querySelectorAll(".page")
-    .forEach(p => p.classList.remove("active"));
-
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
   document.getElementById(id)?.classList.add("active");
 }
-
