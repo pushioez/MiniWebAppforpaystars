@@ -2,6 +2,10 @@ const tg = Telegram.WebApp;
 tg.ready();
 tg.expand();
 
+// Set theme colors
+tg.setHeaderColor("#000000");
+tg.setBackgroundColor("#000000");
+
 /* ===== CONFIG ===== */
 const RATE = 1.84; // Fixed conversion rate
 
@@ -83,13 +87,16 @@ function addToCart(product) {
   cart.push(product);
   saveCart();
   updateCartBadge();
+  showNotification("✓ Добавлено в корзину");
 }
 
 function removeFromCart(index) {
+  const item = cart[index];
   cart.splice(index, 1);
   saveCart();
   updateCartBadge();
   renderCart();
+  showNotification(`Удалено: ${item.name}`);
 }
 
 function getCartTotal() {
@@ -99,11 +106,28 @@ function getCartTotal() {
 function updateCartBadge() {
   const badge = document.getElementById("cart-badge");
   if (cart.length > 0) {
-    badge.textContent = cart.length;
+    badge.textContent = cart.length > 99 ? "99+" : cart.length;
     badge.style.display = "block";
   } else {
     badge.style.display = "none";
   }
+}
+
+/* ===== NOTIFICATIONS ===== */
+function showNotification(message) {
+  const notification = document.createElement("div");
+  notification.className = "notification";
+  notification.textContent = message;
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    notification.classList.add("show");
+  }, 10);
+  
+  setTimeout(() => {
+    notification.classList.remove("show");
+    setTimeout(() => notification.remove(), 300);
+  }, 2000);
 }
 
 /* ===== RENDER PRODUCTS ===== */
@@ -111,35 +135,41 @@ function renderProducts() {
   const productList = document.getElementById("product-list");
   productList.innerHTML = "";
 
-  PRODUCTS.forEach(p => {
+  PRODUCTS.forEach((p, index) => {
     const el = document.createElement("div");
     el.className = "card";
+    el.style.animationDelay = `${index * 0.05}s`;
     el.innerHTML = `
-      <img src="images/${p.img}" alt="${p.name}">
-      <h3>${p.name}</h3>
-      <div class="price">${p.stars}</div>
-      <div class="actions">
-        <button class="glass add">В корзину</button>
-        <button class="primary buy">Купить</button>
+      <div class="card-image-wrapper">
+        <img src="images/${p.img}" alt="${p.name}" loading="lazy">
+        <div class="card-overlay"></div>
+      </div>
+      <div class="card-content">
+        <h3>${p.name}</h3>
+        <div class="price">${p.stars} ⭐</div>
+        <div class="actions">
+          <button class="glass add" data-product-id="${p.id}">В корзину</button>
+          <button class="primary buy" data-product-id="${p.id}">Купить</button>
+        </div>
       </div>
     `;
 
-    el.querySelector(".add").addEventListener("click", () => {
+    el.querySelector(".add").addEventListener("click", (e) => {
+      e.stopPropagation();
       addToCart(p);
       // Visual feedback
       const btn = el.querySelector(".add");
       const originalText = btn.textContent;
       btn.textContent = "✓ Добавлено";
-      btn.style.background = "rgba(52, 199, 89, 0.2)";
-      btn.style.borderColor = "rgba(52, 199, 89, 0.3)";
+      btn.classList.add("success");
       setTimeout(() => {
         btn.textContent = originalText;
-        btn.style.background = "";
-        btn.style.borderColor = "";
-      }, 1000);
+        btn.classList.remove("success");
+      }, 1500);
     });
 
-    el.querySelector(".buy").addEventListener("click", () => {
+    el.querySelector(".buy").addEventListener("click", (e) => {
+      e.stopPropagation();
       renderPayPage([p.id]);
       switchPage("page-pay");
     });
@@ -172,13 +202,16 @@ function renderCart() {
   cart.forEach((item, index) => {
     const el = document.createElement("div");
     el.className = "cart-item";
+    el.style.animationDelay = `${index * 0.05}s`;
     el.innerHTML = `
-      <img src="images/${item.img}" alt="${item.name}">
+      <div class="cart-item-image">
+        <img src="images/${item.img}" alt="${item.name}">
+      </div>
       <div class="cart-item-info">
         <div class="cart-item-name">${item.name}</div>
-        <div class="cart-item-price">${item.stars}</div>
+        <div class="cart-item-price">${item.stars} ⭐</div>
       </div>
-      <button class="cart-remove" data-index="${index}">×</button>
+      <button class="cart-remove" data-index="${index}" aria-label="Удалить">×</button>
     `;
 
     el.querySelector(".cart-remove").addEventListener("click", () => {
@@ -190,6 +223,7 @@ function renderCart() {
 
   const total = getCartTotal();
   cartTotalPrice.textContent = total;
+  cartTotalPrice.innerHTML = `${total} ⭐`;
 
   payCartButton.onclick = () => {
     renderPayPage(cart.map(item => item.id));
@@ -206,15 +240,18 @@ function renderPayPage(items) {
   payItems.innerHTML = "";
 
   let total = 0;
-  items.forEach(itemId => {
+  items.forEach((itemId, index) => {
     const product = PRODUCTS.find(p => p.id === itemId);
     if (product) {
       total += product.stars;
       const el = document.createElement("div");
       el.className = "pay-item";
+      el.style.animationDelay = `${index * 0.05}s`;
       el.innerHTML = `
-        <span class="pay-item-name">${product.name}</span>
-        <span class="pay-item-price">${product.stars}</span>
+        <div class="pay-item-info">
+          <span class="pay-item-name">${product.name}</span>
+        </div>
+        <span class="pay-item-price">${product.stars} ⭐</span>
       `;
       payItems.appendChild(el);
     }
@@ -223,36 +260,91 @@ function renderPayPage(items) {
   payTotalAmount.textContent = total;
   payButtonStars.textContent = total;
 
-  document.getElementById("pay-button").onclick = () => {
-    startPayment(items);
+  // Remove old event listeners and add new one
+  const payButton = document.getElementById("pay-button");
+  const newPayButton = payButton.cloneNode(true);
+  payButton.parentNode.replaceChild(newPayButton, payButton);
+  
+  newPayButton.onclick = () => {
+    startPayment(items, total);
   };
 }
 
 /* ===== PAYMENT ===== */
-function startPayment(items) {
-  tg.sendData(JSON.stringify({
-    type: "stars_payment",
-    items: items
-  }));
+function startPayment(items, total) {
+  // Validate
+  if (!items || items.length === 0) {
+    showNotification("❌ Ошибка: пустой заказ");
+    return;
+  }
+  
+  if (total <= 0) {
+    showNotification("❌ Ошибка: неверная сумма");
+    return;
+  }
+  
+  // Show loading state
+  const payButton = document.getElementById("pay-button");
+  const originalContent = payButton.innerHTML;
+  payButton.disabled = true;
+  payButton.innerHTML = '<span>Обработка...</span>';
+  
+  try {
+    // Send data to bot
+    tg.sendData(JSON.stringify({
+      type: "stars_payment",
+      items: items,
+      total: total
+    }));
+    
+    showNotification("💳 Создание платежа...");
+    
+    // Reset button after a delay (in case of error)
+    setTimeout(() => {
+      if (payButton.disabled) {
+        payButton.disabled = false;
+        payButton.innerHTML = originalContent;
+      }
+    }, 5000);
+    
+    // The bot will create an invoice, and Telegram will handle the payment flow
+    // After payment, the bot will send a message with QR code to the chat
+    // User can check the chat for the QR code
+    
+  } catch (error) {
+    console.error("Payment error:", error);
+    showNotification("❌ Ошибка при создании платежа");
+    payButton.disabled = false;
+    payButton.innerHTML = originalContent;
+  }
 }
 
 /* ===== QR DISPLAY ===== */
 function showQR(qrUrl) {
   switchPage("page-qr");
-  document.getElementById("qr-img").src = qrUrl;
+  const qrImg = document.getElementById("qr-img");
+  qrImg.src = qrUrl;
+  qrImg.onload = () => {
+    qrImg.style.opacity = "1";
+  };
 }
 
-// Listen for QR data from bot
-window.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "qr_code") {
-    showQR(event.data.qrUrl);
-  }
-});
+// Handle payment completion
+// Note: Telegram WebApp doesn't directly receive payment callbacks
+// The bot will send QR code to chat after successful payment
+// User can check chat or return to app
 
-// Also listen for Telegram WebApp events
-tg.onEvent("qr_code", (data) => {
-  if (data && data.qrUrl) {
-    showQR(data.qrUrl);
+// Check URL parameters for QR code (if bot sends it via URL)
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get("qr")) {
+  showQR(urlParams.get("qr"));
+}
+
+// Listen for visibility change (when user returns to app)
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    // User returned to app - could check for updates here
+    updateCartBadge();
   }
 });
 
@@ -296,22 +388,39 @@ function switchPage(id) {
       tabBar.classList.add("hidden");
       document.querySelectorAll(".tab-item").forEach(t => t.classList.remove("active"));
     }
+    
+    // Scroll to top
+    window.scrollTo(0, 0);
   }
 }
 
 /* ===== BACK TO HOME ===== */
-document.querySelector(".back-home-button").addEventListener("click", () => {
-  cart = [];
-  saveCart();
-  updateCartBadge();
-  switchPage("page-main");
-  renderCart();
-});
+const backHomeButton = document.querySelector(".back-home-button");
+if (backHomeButton) {
+  backHomeButton.addEventListener("click", () => {
+    cart = [];
+    saveCart();
+    updateCartBadge();
+    switchPage("page-main");
+    renderCart();
+  });
+}
 
 /* ===== INITIALIZE ===== */
 renderProducts();
 updateCartBadge();
 
-// Handle back button from Pay page (if needed)
-// The Pay page doesn't have a back button in the new design, 
-// but users can use Tab Bar to navigate
+// Add coffee-themed decorative elements
+addCoffeeDecorations();
+
+function addCoffeeDecorations() {
+  // Add floating coffee beans animation
+  const decor = document.createElement("div");
+  decor.className = "coffee-decorations";
+  decor.innerHTML = `
+    <div class="coffee-bean bean-1">☕</div>
+    <div class="coffee-bean bean-2">☕</div>
+    <div class="coffee-bean bean-3">☕</div>
+  `;
+  document.body.appendChild(decor);
+}
