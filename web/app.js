@@ -1,14 +1,11 @@
-/* ================= TELEGRAM ================= */
-const tg = window.Telegram?.WebApp;
+const tg = Telegram.WebApp;
+tg.ready();
+tg.expand();
 
-if (tg) {
-  tg.expand();
-}
-
-/* ================= НАСТРОЙКИ ================= */
+/* ===== CONFIG ===== */
 const RATE = 1.74;
 
-/* ================= ПРОДУКТЫ ================= */
+/* ===== PRODUCTS ===== */
 const PRODUCTS = [
   {
     id: "latte_lemon",
@@ -75,103 +72,92 @@ const PRODUCTS = [
   }
 ];
 
-/* ================= КОРЗИНА ================= */
-let cart = JSON.parse(localStorage.getItem("cart") || "{}");
+let cart = JSON.parse(localStorage.getItem("cart") || "[]");
 
-/* ================= DOM ================= */
+/* ===== RENDER ===== */
 const productList = document.getElementById("product-list");
 
-/* ================= РЕНДЕР ================= */
-function renderProducts() {
-  productList.innerHTML = "";
+PRODUCTS.forEach(p => {
+  const el = document.createElement("div");
+  el.className = "card";
+  el.innerHTML = `
+    <img src="images/${p.img}">
+    <h3>${p.name}</h3>
+    <p>${p.stars} ⭐</p>
+    <div class="actions">
+      <button class="glass add">В корзину</button>
+      <button class="primary buy">Купить</button>
+    </div>
+  `;
 
-  PRODUCTS.forEach(p => {
-    const card = document.createElement("div");
-    card.className = "card";
-
-    card.innerHTML = `
-      <img src="images/${p.img}" alt="${p.name}">
-      <h3>${p.name}</h3>
-      <p>${p.desc}</p>
-      <p><b>${p.stars} ⭐</b></p>
-      <div class="actions">
-        <button class="glass">В корзину</button>
-        <button class="primary">Купить</button>
-      </div>
-    `;
-
-    card.querySelector(".glass").addEventListener("click", () => addToCart(p.id));
-    card.querySelector(".primary").addEventListener("click", () => buyNow(p.id));
-
-    productList.appendChild(card);
+  el.querySelector(".add").addEventListener("click", () => {
+    cart.push(p.id);
+    localStorage.setItem("cart", JSON.stringify(cart));
   });
-}
 
-renderProducts();
+  el.querySelector(".buy").addEventListener("click", () => {
+    startPayment([p.id]);
+  });
 
-/* ================= ЛОГИКА ================= */
-function addToCart(id) {
-  cart[id] = (cart[id] || 0) + 1;
-  localStorage.setItem("cart", JSON.stringify(cart));
+  productList.appendChild(el);
+});
 
-  tg?.HapticFeedback?.impactOccurred("light");
-}
+/* ===== CART ===== */
+document.getElementById("go-cart").onclick = openCart;
 
-function buyNow(id) {
-  const item = PRODUCTS.find(p => p.id === id);
-  if (!item || !tg) return;
-
-  tg.sendData(JSON.stringify({
-    type: "buy",
-    items: [{ id, qty: 1 }]
-  }));
-
-  tg.close();
-}
-
-function goCart() {
+function openCart() {
   switchPage("page-pay");
 
   const payList = document.getElementById("pay-list");
-  const totalEl = document.getElementById("total-stars");
-  const payBtn = document.getElementById("pay-button");
-
   payList.innerHTML = "";
+
   let total = 0;
+  cart.map(id => PRODUCTS.find(p => p.id === id))
+      .filter(Boolean)
+      .forEach(p => {
+        total += p.stars;
+        payList.innerHTML += `<p>${p.name} — ${p.stars} ⭐</p>`;
+      });
 
-  Object.entries(cart).forEach(([id, qty]) => {
-    const item = PRODUCTS.find(p => p.id === id);
-    if (!item) return;
+  document.getElementById("total-stars").innerText = total;
 
-    const sum = item.stars * qty;
-    total += sum;
-
-    payList.innerHTML += `<p>${item.name} × ${qty} — ${sum} ⭐</p>`;
-  });
-
-  totalEl.innerText = total;
-  payBtn.disabled = total === 0;
-  payBtn.innerText = total > 0 ? `Оплатить ${total} ⭐` : "Корзина пуста";
-
-  payBtn.onclick = () => {
-    if (!tg || total === 0) return;
-
-    tg.sendData(JSON.stringify({
-      type: "cart",
-      items: Object.entries(cart).map(([id, qty]) => ({ id, qty }))
-    }));
-
-    tg.close();
+  document.getElementById("pay-button").onclick = () => {
+    startPayment(cart);
   };
 }
 
-function goMain() {
-  cart = {};
+/* ===== STARS PAYMENT ===== */
+function startPayment(items) {
+  tg.sendData(JSON.stringify({
+    type: "stars_payment",
+    items
+  }));
+}
+
+/* ===== QR AFTER PAYMENT ===== */
+function showQR(qrUrl) {
+  switchPage("page-qr");
+  document.getElementById("qr-img").src = qrUrl;
+}
+
+/* ===== NAV ===== */
+document.querySelectorAll(".back").forEach(b =>
+  b.onclick = () => switchPage("page-main")
+);
+
+document.querySelector(".back-main").onclick = () => {
+  cart = [];
   localStorage.removeItem("cart");
   switchPage("page-main");
-}
+};
 
 function switchPage(id) {
   document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-  document.getElementById(id)?.classList.add("active");
+  document.getElementById(id).classList.add("active");
 }
+
+/* ===== MOCK: после оплаты ===== */
+// ⚠️ В реальности это приходит от бота
+window.mockPaymentSuccess = () => {
+  showQR("https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=ORDER123");
+};
