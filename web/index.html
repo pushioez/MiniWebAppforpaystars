@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Coffee Mini App</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <link rel="stylesheet" href="style.css">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
@@ -11,30 +11,63 @@
 
 <div id="app">
 
-  <!-- MAIN -->
+  <!-- MAIN PAGE -->
   <section id="page-main" class="page active">
     <h2>Меню</h2>
     <div id="product-list" class="products"></div>
-    <button id="go-cart" class="bottom-btn">Корзина</button>
   </section>
 
-  <!-- PAY -->
+  <!-- CART PAGE -->
+  <section id="page-cart" class="page">
+    <h2>Корзина</h2>
+    <div id="cart-list"></div>
+    <div id="cart-total" class="cart-total" style="display: none;">
+      <span class="cart-total-label">Итого:</span>
+      <span class="cart-total-price" id="cart-total-price">0</span>
+    </div>
+    <button id="pay-cart-button" class="pay-cart-button primary" style="display: none;">Оплатить корзину</button>
+    <div id="cart-empty" class="cart-empty" style="display: none;">
+      <p>Корзина пуста</p>
+    </div>
+  </section>
+
+  <!-- PAY PAGE -->
   <section id="page-pay" class="page">
     <h2>Оплата</h2>
-    <div id="pay-list"></div>
-    <p>Итого: <span id="total-stars">0</span> ⭐</p>
-    <button id="pay-button" class="primary">Оплатить</button>
-    <button class="glass back">Назад</button>
+    <div id="pay-items" class="pay-items"></div>
+    <div id="pay-total" class="pay-total">
+      <div class="pay-total-label">Итого к оплате</div>
+      <div class="pay-total-amount" id="pay-total-amount">0</div>
+    </div>
+    <div class="pay-button-container">
+      <button id="pay-button" class="pay-button primary">Оплатить <span id="pay-button-stars">0</span> ⭐</button>
+    </div>
   </section>
 
-  <!-- QR -->
+  <!-- QR PAGE -->
   <section id="page-qr" class="page">
-    <h2>Оплата прошла</h2>
-    <img id="qr-img" />
-    <p>Покажите QR бариста</p>
-    <button class="primary back-main">На главную</button>
+    <div class="qr-container">
+      <div class="qr-image-wrapper">
+        <img id="qr-img" />
+      </div>
+      <p class="qr-message">Покажите QR бариста</p>
+      <button class="back-home-button primary">На главную</button>
+    </div>
   </section>
 
+</div>
+
+<!-- TAB BAR -->
+<div class="tab-bar">
+  <div class="tab-item active" data-page="page-main">
+    <div class="tab-icon">🏠</div>
+    <div class="tab-label">Главная</div>
+  </div>
+  <div class="tab-item" data-page="page-cart">
+    <div class="tab-icon">🛒</div>
+    <div class="tab-label">Корзина</div>
+    <span id="cart-badge" class="cart-badge" style="display: none;"></span>
+  </div>
 </div>
 
 <script src="app.js"></script>
